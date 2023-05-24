@@ -1,0 +1,66 @@
+#!/bin/bash
+#
+function checkIfBinaryExists () {
+	if [ "$(command -v "$1")" ]; then
+		echo "command \"$1\" exists on system"
+	else	
+	    echo "command \"$1\" doesn't exists on system, exiting..."
+		exit 1
+	fi
+			
+}
+
+checkIfBinaryExists "gpg"
+checkIfBinaryExists "sops"
+checkIfBinaryExists "jq"
+checkIfBinaryExists "yq"
+
+REGEX_PATTERN_TO_FILTER="password|secret|token|access_token|accessToken|keyPhrase|keyphrase|pass|adminpass|adminpassword|adminPassword|credential|credentials|keypass|keyPass|secretKey|secretkey|senitel_end_of_pattern"
+
+if git rev-parse --verify HEAD >/dev/null 2>&1
+then
+	against=HEAD
+else
+	# Initial commit: diff against an empty tree object
+	against=$(git hash-object -t tree /dev/null)
+fi
+FINGER_PRINT=$(gpg --fingerprint zgrinber@redhat.com | grep -E '^[" "]+[A-F0-9]+' -m 1 | sed 's/\ //g')
+export filesList="$(git diff --cached --name-only --diff-filter=AMC "$against")"
+for file in $filesList 
+do
+if [[ "${string}" == *"${substring}"* ]]; then
+	echo "${string} contains: ${substring}"
+fi
+
+if [[ "${file}" == *".json"* ]] || [[ "${file}" == *".yaml"* ]] || [[ "${file}" == *"env"* ]]  ; 
+then
+	if [[ "${file}" == *".json"* ]]
+	  then
+	   ALREADY_ENCRYPTED=$(cat $file | jq .sops.gpg)
+	   if [[ "${ALREADY_ENCRYPTED}" == "null" ]]; then
+		   sops --input-type json --in-place --encrypt --encrypted-regex $REGEX_PATTERN_TO_FILTER --pgp "$FINGER_PRINT" "$file"  
+	   fi
+    fi
+
+	if [[ "${file}" == *".yaml"* ]]
+	  then
+	   ALREADY_ENCRYPTED=$(cat $file | yq .sops.gpg)
+	   if [[ "${ALREADY_ENCRYPTED}" == "null" ]]; then
+		   sops --input-type yaml --in-place --encrypt --encrypted-regex $REGEX_PATTERN_TO_FILTER --pgp "$FINGER_PRINT" "$file"  
+	   fi	   
+	fi   
+	if [[ "${file}" == *".env"* ]]
+	  then
+	   ALREADY_ENCRYPTED=$(cat $file | grep "sops_version=" )
+	   if [[ -z "${ALREADY_ENCRYPTED}" ]]; 
+	   then
+		   sops --input-type dotenv --in-place --encrypt --encrypted-regex $REGEX_PATTERN_TO_FILTER --pgp "$FINGER_PRINT" "$file"  
+	   fi
+	fi	
+	git add "$file"
+fi
+done
+
+# exec 1>&2
+exit 0
+

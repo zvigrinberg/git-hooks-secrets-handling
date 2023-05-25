@@ -1,5 +1,6 @@
 #!/bin/bash
 #
+REGEX_PATTERN_TO_FILTER="password|secret|token|access_token|accessToken|keyPhrase|keyphrase|pass|adminpass|adminpassword|adminPassword|credential|credentials|keypass|keyPass|secretKey|secretkey|senitel_end_of_pattern"
 function checkIfBinaryExists () {
 	if [ "$(command -v "$1")" ]; then
 		echo "command \"$1\" exists on system"
@@ -9,6 +10,30 @@ function checkIfBinaryExists () {
 	fi
 			
 }
+
+function checkIfEncryptionNeeded () {
+   result=false
+   	
+   case "$1" in
+	json)
+		KEY_PATTERNS_IN_JSON=$(echo $REGEX_PATTERN_TO_FILTER | sed -E 's/\|/":|/g')
+		grep -i -r -E '"$KEY_PATTERNS_IN_JSON"'  "$2"
+	;;
+	yaml)
+	    KEY_PATTERNS_IN_YAML=$(echo $REGEX_PATTERN_TO_FILTER | sed -E 's/\|/:|/g')
+		grep -i -r -E '"$KEY_PATTERNS_IN_YAML"'  "$2"
+	;;
+	envdot)
+	    KEY_PATTERNS_IN_ENV=$(echo $REGEX_PATTERN_TO_FILTER | sed -E 's/\|/=|/g')
+		grep -i -r -E '"$KEY_PATTERNS_IN_ENV"'  "$2"
+	;;
+	*)
+		echo "default (none of above)"
+	;;
+   esac
+   return $result  
+}
+
 
 checkIfBinaryExists "gpg"
 checkIfBinaryExists "sops"
@@ -34,9 +59,11 @@ fi
 
 if [[ "${file}" == *".json"* ]] || [[ "${file}" == *".yaml"* ]] || [[ "${file}" == *"env"* ]]  ; 
 then
+    
 	if [[ "${file}" == *".json"* ]]
 	  then
 	   ALREADY_ENCRYPTED=$(cat $file | jq .sops.gpg)
+	   checkIfEncryptionNeeded "json" "$file"
 	   if [[ "${ALREADY_ENCRYPTED}" == "null" ]]; then
 		   sops --input-type json --in-place --encrypt --encrypted-regex $REGEX_PATTERN_TO_FILTER --pgp "$FINGER_PRINT" "$file"  
 	   fi

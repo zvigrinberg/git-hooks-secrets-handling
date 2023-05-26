@@ -1,39 +1,44 @@
 #!/bin/bash
 #
 REGEX_PATTERN_TO_FILTER="password|secret|token|access_token|accessToken|keyPhrase|keyphrase|pass|adminpass|adminpassword|adminPassword|credential|credentials|keypass|keyPass|secretKey|secretkey|senitel_end_of_pattern"
-function checkIfBinaryExists () {
+function checkIfBinaryExists() {
 	if [ "$(command -v "$1")" ]; then
 		echo "command \"$1\" exists on system"
-	else	
-	    echo "command \"$1\" doesn't exists on system, exiting..."
+	else
+		echo "command \"$1\" doesn't exists on system, exiting..."
 		exit 1
 	fi
-			
+
 }
 
-function checkIfEncryptionNeeded () {
-   result=false
-   	
-   case "$1" in
+function checkIfEncryptionNeeded() {
+	result=1
+	found=""
+	case "$1" in
 	json)
 		KEY_PATTERNS_IN_JSON=$(echo $REGEX_PATTERN_TO_FILTER | sed -E 's/\|/":|/g')
-		grep -i -r -E '"$KEY_PATTERNS_IN_JSON"'  "$2"
-	;;
+		found=$(grep -i -r -E "$KEY_PATTERNS_IN_JSON" "$2")
+		;;
 	yaml)
-	    KEY_PATTERNS_IN_YAML=$(echo $REGEX_PATTERN_TO_FILTER | sed -E 's/\|/:|/g')
-		grep -i -r -E '"$KEY_PATTERNS_IN_YAML"'  "$2"
-	;;
-	envdot)
-	    KEY_PATTERNS_IN_ENV=$(echo $REGEX_PATTERN_TO_FILTER | sed -E 's/\|/=|/g')
-		grep -i -r -E '"$KEY_PATTERNS_IN_ENV"'  "$2"
-	;;
+		KEY_PATTERNS_IN_YAML=$(echo $REGEX_PATTERN_TO_FILTER | sed -E 's/\|/:|/g')
+		found=$(grep -i -r -E "$KEY_PATTERNS_IN_YAML" "$2")
+		;;
+	dotenv)
+		KEY_PATTERNS_IN_ENV=$(echo $REGEX_PATTERN_TO_FILTER | sed -E 's/\|/=|/g')
+		found=$(grep -i -r -E "$KEY_PATTERNS_IN_ENV" "$2")
+		;;
 	*)
 		echo "default (none of above)"
-	;;
-   esac
-   return $result  
-}
+		;;
+	esac
+    
+	if [[ -n "${found}" ]]; then
+		echo "found $file with sensitive content, determinded to encrypt"
+		result=0
+	fi
 
+	return $result
+}
 
 checkIfBinaryExists "gpg"
 checkIfBinaryExists "sops"
@@ -42,8 +47,7 @@ checkIfBinaryExists "yq"
 
 REGEX_PATTERN_TO_FILTER="password|secret|token|access_token|accessToken|keyPhrase|keyphrase|pass|adminpass|adminpassword|adminPassword|credential|credentials|keypass|keyPass|secretKey|secretkey|senitel_end_of_pattern"
 
-if git rev-parse --verify HEAD >/dev/null 2>&1
-then
+if git rev-parse --verify HEAD >/dev/null 2>&1; then
 	against=HEAD
 else
 	# Initial commit: diff against an empty tree object
@@ -51,43 +55,42 @@ else
 fi
 FINGER_PRINT=$(gpg --fingerprint zgrinber@redhat.com | grep -E '^[" "]+[A-F0-9]+' -m 1 | sed 's/\ //g')
 export filesList="$(git diff --cached --name-only --diff-filter=AMC "$against")"
-for file in $filesList 
-do
-if [[ "${string}" == *"${substring}"* ]]; then
-	echo "${string} contains: ${substring}"
-fi
+for file in $filesList; do
+    echo "processing file name - $file"
+	if [[ "${file}" == *".json"* ]] || [[ "${file}" == *".yaml"* ]] || [[ "${file}" == *"env"* ]]; then
 
-if [[ "${file}" == *".json"* ]] || [[ "${file}" == *".yaml"* ]] || [[ "${file}" == *"env"* ]]  ; 
-then
-    
-	if [[ "${file}" == *".json"* ]]
-	  then
-	   ALREADY_ENCRYPTED=$(cat $file | jq .sops.gpg)
-	   checkIfEncryptionNeeded "json" "$file"
-	   if [[ "${ALREADY_ENCRYPTED}" == "null" ]]; then
-		   sops --input-type json --in-place --encrypt --encrypted-regex $REGEX_PATTERN_TO_FILTER --pgp "$FINGER_PRINT" "$file"  
-	   fi
-    fi
+		if [[ "${file}" == *".json"* ]]; then
+			ALREADY_ENCRYPTED=$(cat $file | jq .sops.gpg)
+			checkIfEncryptionNeeded "json" "$file"
+			decision=$?
+			echo "decision for json file $file : $decision"
+			if [[ "${ALREADY_ENCRYPTED}" == "null" ]] && [[ "${decision}" == 0 ]] ; then
+				sops --input-type json --in-place --encrypt --encrypted-regex $REGEX_PATTERN_TO_FILTER --pgp "$FINGER_PRINT" "$file"
+			fi
+		fi
 
-	if [[ "${file}" == *".yaml"* ]]
-	  then
-	   ALREADY_ENCRYPTED=$(cat $file | yq .sops.gpg)
-	   if [[ "${ALREADY_ENCRYPTED}" == "null" ]]; then
-		   sops --input-type yaml --in-place --encrypt --encrypted-regex $REGEX_PATTERN_TO_FILTER --pgp "$FINGER_PRINT" "$file"  
-	   fi	   
-	fi   
-	if [[ "${file}" == *".env"* ]]
-	  then
-	   ALREADY_ENCRYPTED=$(cat $file | grep "sops_version=" )
-	   if [[ -z "${ALREADY_ENCRYPTED}" ]]; 
-	   then
-		   sops --input-type dotenv --in-place --encrypt --encrypted-regex $REGEX_PATTERN_TO_FILTER --pgp "$FINGER_PRINT" "$file"  
-	   fi
-	fi	
-	git add "$file"
-fi
+		if [[ "${file}" == *".yaml"* ]] ; then
+			ALREADY_ENCRYPTED=$(cat $file | yq .sops.gpg)
+			checkIfEncryptionNeeded "yaml" "$file"
+			decision=$?
+			echo "decision for yaml file $file : $decision"
+			if [[ "${ALREADY_ENCRYPTED}" == "null" ]] && [[ "${decision}" == 0 ]] ; then
+				sops --input-type yaml --in-place --encrypt --encrypted-regex $REGEX_PATTERN_TO_FILTER --pgp "$FINGER_PRINT" "$file"
+			fi
+		fi
+
+		if [[ "${file}" == *".env"* ]]; then
+			ALREADY_ENCRYPTED=$(cat $file | grep "sops_version=")
+			checkIfEncryptionNeeded "dotenv" "$file"
+			decision=$?
+			echo "decision for dotenv file $file : $decision"
+			if [[ -z "${ALREADY_ENCRYPTED}" ]] && [[ "${decision}" == 0 ]]; then
+				sops --input-type dotenv --in-place --encrypt --encrypted-regex $REGEX_PATTERN_TO_FILTER --pgp "$FINGER_PRINT" "$file"
+			fi
+		fi
+		git add "$file"
+	fi
 done
 
 # exec 1>&2
 exit 0
-

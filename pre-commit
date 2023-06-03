@@ -16,7 +16,7 @@ function checkIfEncryptionNeeded() {
 	found=""
 	case "$1" in
 	json)
-		KEY_PATTERNS_IN_JSON=$(echo $REGEX_PATTERN_TO_FILTER | sed -E 's/\|/":|/g')
+		KEY_PATTERNS_IN_JSON=$(echo $REGEX_PATTERN_TO_FILTER | sed -E 's/\|/"[[:space:]]{0,1}:|/g')
 		found=$(grep -i -r -E "$KEY_PATTERNS_IN_JSON" "$2")
 		;;
 	yaml)

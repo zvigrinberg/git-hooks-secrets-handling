@@ -1,0 +1,52 @@
+#!/bin/bash
+
+PREVIOUS_REF="$1"
+NEW_REF="$2"
+BRANCH_CHECKOUT="$3"
+
+if [[ "${BRANCH_CHECKOUT}" == "1" ]]; then
+    echo "moving from branch $PREVIOUS_REF to branch $NEW_REF", and decrypting all yaml, json and env files in new branch that are encrypted.
+
+else    
+    exit 0
+fi
+
+
+
+FILES_LIST=$(git ls-tree -r $NEW_REF | awk '{print $4}' | grep -E '.env|.yaml|.json')
+for file in $FILES_LIST
+do
+    
+	if [[ "${file}" == *".json"* ]]; then
+		ALREADY_ENCRYPTED=$(cat $file | jq .sops.pgp)
+
+		if [[ "${ALREADY_ENCRYPTED}" != "null" ]] ; then
+            echo "decrypting $file"
+			sops --in-place --decrypt  "$file"
+            echo "successfully decrypted $file"
+		fi
+	fi
+
+	if [[ "${file}" == *".yaml"* ]]; then
+		ALREADY_ENCRYPTED=$(cat $file | yq .sops.pgp)
+
+		if [[ "${ALREADY_ENCRYPTED}" != "null" ]] ; then
+            echo "decrypting $file" 
+			sops --in-place --decrypt  "$file"
+            echo "successfully decrypted $file"
+		fi
+	fi
+
+	if [[ "${file}" == *".env"* ]]; then
+		ALREADY_ENCRYPTED=$(cat $file | grep "sops_version=")    
+        
+		if [[ -n "${ALREADY_ENCRYPTED}"  ]] ; then
+            echo "decrypting $file"
+			sops --in-place --decrypt  "$file"
+            echo "successfully decrypted $file"
+		fi
+	fi    
+    
+
+    
+done

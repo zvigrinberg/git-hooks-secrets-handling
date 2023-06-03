@@ -60,7 +60,7 @@ for file in $filesList; do
 	if [[ "${file}" == *".json"* ]] || [[ "${file}" == *".yaml"* ]] || [[ "${file}" == *"env"* ]]; then
 
 		if [[ "${file}" == *".json"* ]]; then
-			ALREADY_ENCRYPTED=$(cat $file | jq .sops.gpg)
+			ALREADY_ENCRYPTED=$(cat $file | jq .sops.pgp)
 			checkIfEncryptionNeeded "json" "$file"
 			decision=$?
 			echo "decision for json file $file : $decision"
@@ -70,7 +70,7 @@ for file in $filesList; do
 		fi
 
 		if [[ "${file}" == *".yaml"* ]] ; then
-			ALREADY_ENCRYPTED=$(cat $file | yq .sops.gpg)
+			ALREADY_ENCRYPTED=$(cat $file | yq .sops.pgp)
 			checkIfEncryptionNeeded "yaml" "$file"
 			decision=$?
 			echo "decision for yaml file $file : $decision"

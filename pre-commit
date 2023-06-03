@@ -66,6 +66,7 @@ for file in $filesList; do
 			echo "decision for json file $file : $decision"
 			if [[ "${ALREADY_ENCRYPTED}" == "null" ]] && [[ "${decision}" == 0 ]] ; then
 				sops --input-type json --in-place --encrypt --encrypted-regex $REGEX_PATTERN_TO_FILTER --pgp "$FINGER_PRINT" "$file"
+					cat $file | jq . | tee  $file >/dev/null
 			fi
 		fi
 
@@ -76,6 +77,7 @@ for file in $filesList; do
 			echo "decision for yaml file $file : $decision"
 			if [[ "${ALREADY_ENCRYPTED}" == "null" ]] && [[ "${decision}" == 0 ]] ; then
 				sops --input-type yaml --in-place --encrypt --encrypted-regex $REGEX_PATTERN_TO_FILTER --pgp "$FINGER_PRINT" "$file"
+				cat $file | yq . | tee "$file" >/dev/null
 			fi
 		fi
 

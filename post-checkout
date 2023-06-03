@@ -21,9 +21,10 @@ do
 		ALREADY_ENCRYPTED=$(cat $file | jq .sops.pgp)
 
 		if [[ "${ALREADY_ENCRYPTED}" != "null" ]] ; then
-            echo "decrypting $file"
+      echo "decrypting $file"
 			sops --in-place --decrypt  "$file"
-            echo "successfully decrypted $file"
+			cat "$file" | jq . | tee "$file" >/dev/null
+      echo "successfully decrypted $file"
 		fi
 	fi
 
@@ -33,6 +34,7 @@ do
 		if [[ "${ALREADY_ENCRYPTED}" != "null" ]] ; then
             echo "decrypting $file" 
 			sops --in-place --decrypt  "$file"
+			cat "$file" | yq . | tee "$file" >/dev/null
             echo "successfully decrypted $file"
 		fi
 	fi

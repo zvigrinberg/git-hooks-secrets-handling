@@ -47,6 +47,11 @@ gpg --import public.key
 gpg --allow-secret-key-import --import private.key
 ```
 
+9. Plant your fingerprint id instead of mine in the pre-commit hook
+```shell
+sed -i 's/zgrinber@redhat.com/your@email.com/g' pre-commit 
+```
+
 ## Demo Procedure
 
 1. If the git is new cloned repository or newly locally created repo using `git init` command, then hooks will be fetched from template directory automatically, otherwise, if the repository created before hooks templates were modified, then need to refresh the directory of the repo:

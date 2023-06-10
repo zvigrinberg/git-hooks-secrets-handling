@@ -10,15 +10,16 @@ else
     exit 0
 fi
 
+
 git notes remove $NEW_REF
 FILES_LIST=$(git ls-tree -r $NEW_REF | awk '{print $4}' | grep -E '.env|.yaml|.json')
 for file in $FILES_LIST
 do
-    
+     echo "Processing file -> '$file'"
 	if [[ "${file}" == *".json"* ]]; then
-		ALREADY_ENCRYPTED=$(cat $file | jq .sops.pgp)
+		ALREADY_ENCRYPTED=$(cat $file | jq .sops.pgp 2>&1  )
 
-		if [[ "${ALREADY_ENCRYPTED}" != "null" ]] ; then
+		if [[ "${ALREADY_ENCRYPTED}" != "null" ]] && [[ ! "${ALREADY_ENCRYPTED}" == *"error"* ]] && [[ ! "${ALREADY_ENCRYPTED}" == *"Error"* ]] && [[ ! "${ALREADY_ENCRYPTED}" == *"ERROR"* ]] ; then
       echo "decrypting $file"
 			sops --in-place --decrypt  "$file"
 			cat "$file" | jq . | tee "$file" >/dev/null
@@ -28,9 +29,9 @@ do
 	fi
 
 	if [[ "${file}" == *".yaml"* ]]; then
-		ALREADY_ENCRYPTED=$(cat $file | yq .sops.pgp)
+		ALREADY_ENCRYPTED=$(cat $file | yq .sops.pgp 2>&1 )
 
-		if [[ "${ALREADY_ENCRYPTED}" != "null" ]] ; then
+		if [[ "${ALREADY_ENCRYPTED}" != "null" ]] && [[ ! "${ALREADY_ENCRYPTED}" == *"error"* ]] && [[ ! "${ALREADY_ENCRYPTED}" == *"Error"* ]] && [[ ! "${ALREADY_ENCRYPTED}" == *"ERROR"* ]]   ; then
             echo "decrypting $file" 
 			sops --in-place --decrypt  "$file"
 			cat "$file" | yq . | tee "$file" >/dev/null

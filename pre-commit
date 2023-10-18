@@ -40,6 +40,12 @@ function checkIfEncryptionNeeded() {
 	return $result
 }
 
+if [[ "${GIT_AUTO_ENC_DEC}" != "true" ]]; then
+  echo "bypassed automatic encryption of sensitive data"
+  exit 0
+
+fi
+
 checkIfBinaryExists "gpg"
 checkIfBinaryExists "sops"
 checkIfBinaryExists "jq"

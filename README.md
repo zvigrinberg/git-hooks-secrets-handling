@@ -8,7 +8,8 @@ Provide a way how to encrypt automatically sensitive data (using sops and gpg) b
 - decrypted encrypted files that was encrypted before committing on the following events:
   1. When checking out a branch with encrypted data.
   2. When cloning a repo and the default branch contains encrypted files.
-  3. When pulling or merging a branch , and the merge commit contains an encrypted file - TBD. 
+  3. When pulling or merging a branch , and the merge commit contains an encrypted file - TBD.
+  4. logic will be disabled by default , in order to activate it, need to set environment variable GIT_AUTO_ENC_DEC=true in the terminal session.
 
 
 ## Prerequisites.
@@ -53,6 +54,11 @@ sed -i 's/zgrinber@redhat.com/your@email.com/g' pre-commit
 ```
 
 ## Demo Procedure
+
+* In order to activate the logic for the current terminal session, kindly turn of environment variable  `GIT_AUTO_ENC_DEC`
+```shell
+export GIT_AUTO_ENC_DEC=true
+```
 
 1. If the git is new cloned repository or newly locally created repo using `git init` command, then hooks will be fetched from template directory automatically, otherwise, if the repository created before hooks templates were modified, then need to refresh the directory of the repo:
 ```shell

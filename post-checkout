@@ -3,6 +3,12 @@ PREVIOUS_REF="$1"
 NEW_REF="$2"
 BRANCH_CHECKOUT="$3"
 
+if [[ "${GIT_AUTO_ENC_DEC}" != "true" ]]; then
+  echo "bypassed automatic decryption of sensitive encrypted data"
+  exit 0
+
+fi
+
 if [[ "${BRANCH_CHECKOUT}" == "1" ]]; then
     echo "moving from branch $PREVIOUS_REF to branch $NEW_REF", and decrypting all yaml, json and env files in new branch that are encrypted.
 
